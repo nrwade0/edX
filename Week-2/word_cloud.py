@@ -11,7 +11,7 @@ import collections
 file=open('98-0.txt', encoding="utf8")
 
 # opening and reading stopwords file, not file type?
-#stopwords = set(line.strip() for line in open('stopwords'))
+stopwords = set(line.strip() for line in open('stopwords'))
 
 # instantiate wordcount dictionary contains every word in the file
 wordcount={}
@@ -30,17 +30,17 @@ for word in file.read().lower().split():
     # Otherwise increment the word's counter.
     
     # Consideration of stopwords...
-    #if word not in stopwords:
-    #    if word not in wordcount:
-    #        wordcount[word] = 1
-    #    else:
-    #        wordcount[word] += 1
+    if word not in stopwords:
+        if word not in wordcount:
+            wordcount[word] = 1
+        else:
+            wordcount[word] += 1
     
     # No consideration of stopword...
-    if word not in wordcount:
-        wordcount[word] = 1
-    else:
-        wordcount[word] += 1
+    #if word not in wordcount:
+    #    wordcount[word] = 1
+    #else:
+    #    wordcount[word] += 1
 
 
 # Transfers wordcount dictionary to a counter 'd' that holds the frequencies of
