@@ -1,3 +1,12 @@
-edX 
+HarvardX Data Science Professional Certificate
 
-This 10-week self-paced course is part of the Data Science MicroMasters program and will introduce you to a collection of powerful, open-source, tools needed to analyze data and to conduct data science.
+1. R basics
+2. Visualization
+3. Probability
+4. Inference & Modeling
+5. Productivity Tools
+6. Wrangling
+7. Linear Regression
+8. Machine Learning
+9. Capstone
+
