@@ -1,4 +1,6 @@
-HarvardX Data Science Professional Certificate
+# HarvardX Data Science Professional Certificate
+
+The assesments are usually completed on Datacamp, and the scripts for the section tests (if any) do not necessitate saving.
 
 1. R basics
 2. Visualization
