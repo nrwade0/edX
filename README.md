@@ -1,6 +1,6 @@
 # HarvardX Data Science Professional Certificate in R
 
-The assesments are usually completed on Datacamp, and the scripts for the section tests (if any) do not necessitate saving.
+Early assesments (courses 1-4) were mostly completed using Datacamp. Once productivity tools were introduced, the scripts were completed using RStudio.
 
 1. R basics
 2. Visualization
