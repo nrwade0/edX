@@ -46,6 +46,12 @@ edx %>% group_by(title) %>%
   summarize(n_ratings = n()) %>%
   arrange(desc(n_ratings))
 
+# How many movies have one rating?
+edx %>% group_by(title) %>%
+  summarize(n_ratings = n()) %>%
+  filter(n_ratings==1) %>%
+  count() %>% pull()
+
 
 ############################# QUESTION 7 ###############################
 # What are the five most given ratings in order from most to least?

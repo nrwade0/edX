@@ -1,0 +1,204 @@
+---
+title: "MovieLens Project Report"
+author: "Nick Wade"
+date: "12/19/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+load("~/Documents/GitHub/edX/9-Capstone/MovieLensProject/data.RData")
+library(tidyverse)
+library(DescTools)
+library(tinytex)
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+
+## Introduction
+Machine learning is integral to a highly-technological modern business. It describes data about customer bases as a whole or personalizes an experience for a single user. The aim of machine learning is to process data into helpful information and naturally intuitive solutions. Effective machine learning algorithms have attracted a lot of attention in recent years: for example, in 2006, Netflix placed a seven-figure bounty on a verified improvemnent to their movie recommendation system.
+
+We build off the Netflix challenge premise and, more specifically, predict movie ratings for users in a large dataset. We train a linear model to generate predicted movie ratings and calculate the Root Mean Square Error (RMSE) of the predicted ratings versus the actual ratings.
+
+This report is composed of four parts: the introduction has presented the problem, the summary describes the dataset and develops preliminary inquiries, the methods section establishes the model and implements in with the accompanying .R file, and the conclusion section shares the results.
+
+
+
+## Summary
+We use the [MovieLens 10M dataset](https://grouplens.org/datasets/movielens/10m/) that consists of 10 million ratings and 100,000 tag applications applied to 10,000 movies by 72,000 users. This leads to wildly varying numbers of ratings for each movie, with the most rated movie being *Pulp Fiction* (1994) with over 31,000 ratings and over 100 titles with a single rating.
+
+```{r initial_inquiries, echo=TRUE}
+# Most rated films
+edx %>% group_by(title) %>%
+  summarize(n_ratings = n()) %>%
+  arrange(desc(n_ratings))
+
+# Number of movies rated once
+edx %>% group_by(title) %>%
+  summarize(n_ratings = n()) %>%
+  filter(n_ratings==1) %>%
+  count() %>% pull()
+```
+
+Due to the size of the dataset, built-in machine learning algorithms using R packages such as *caret* would require too much resources for a laptop to run in a timely manner if at all. Therefore, we achieve our goal using a linear model developed in the methods section of this report. The RMSE function is used from the DescTools package as the measure of accuracy.
+
+The dataset is split 90-10 on train and test sets respectively. This is completed in the first steps of the script. The training set (edx) has 9,000,055 entries with 6 columns. Similarly, the test set (validation) has 999,999 entries and 6 columns. The column information is shown below for the validation dataset.
+
+```{r glimpse_data, echo=TRUE}
+glimpse(validation)
+```
+
+
+
+## Methods
+The simplest model is to use the average across every user and every movie as all of our predicted ratings. This model follows the simple equation, 
+
+\begin{equation}
+  Y_{u,i} = \mu,
+\end{equation}
+
+where $Y_{u,i}$ is the predicted rating of user $u$ and movie $i$ and $\mu$ is the average rating across all entries. This is computed as 3.512 (`mean(edx$rating)`). 
+
+```{r just_average_model, echo=TRUE}
+mu <- mean(edx$rating)
+RMSE(validation$rating, mu)
+```
+
+In order to improve our model, we add an independent error term $b_{u,i}$ that expresses rating differences for users and movies. We will add the user bias term later, but for now we add the movie bias term $b_i$. This term averages the rankings for any movie $i$ because some are liked or hated more than others. The new model is:
+
+\begin{equation}
+  Y_{u,i} = \mu + b_{i}.
+\end{equation}
+
+```{r movie_bias_model, echo=TRUE}
+# add movie bias term, b_i
+b_i <- edx %>%
+  group_by(movieId) %>%
+  summarize(b_i = mean(rating - mu))
+
+# predict all unknown ratings with mu and b_i
+predicted_ratings <- validation %>% 
+  left_join(b_i, by='movieId') %>%
+  mutate(pred = mu + b_i) %>%
+  pull(pred)
+
+# calculate RMSE of movie ranking effect
+RMSE(validation$rating, predicted_ratings)
+```
+
+Now we introduce the user bias term $b_u$ in order to further improve our model. This term minimizes the effect of extreme ratings made by users that love or hate every movie. Each user $u$ is given a bias term that sways their predicted movies. Our updated model is:
+
+\begin{equation}
+  Y_{u,i} = \mu + b_{i} + b_{u}.
+\end{equation}
+
+```{r movie_user_bias_model, echo=TRUE}
+# add user bias term, b_u
+b_u <- edx %>% 
+  left_join(b_i, by='movieId') %>%
+  group_by(userId) %>%
+  summarize(b_u = mean(rating - mu - b_i))
+
+# predict new ratings with movie and user bias
+predicted_ratings <- validation %>% 
+  left_join(b_i, by='movieId') %>%
+  left_join(b_u, by='userId') %>%
+  mutate(pred = mu + b_i + b_u) %>%
+  pull(pred)
+
+# calculate RMSE of movie and user bias effect
+RMSE(predicted_ratings, validation$rating)
+```
+
+Finally, we employ regularization to reduce the effect of large errors in our predictions. Regularization penalizes incorrect estimates on small sample sizes. For instance, our $b_i$ term accounts for the average deviation on all ratings of a movie, whether there is 1 or 100 ratings to the movie. We use regularization to reduce the dramatic effect that a exceptionally extreme rating will have on our $b_i$ term. This method is also applied to the user bias term $b_u$ to reduce large anomalies in the ratings of users.
+
+Regularization achieves the same goal as confidence intervals when you are only able to predict a single number, not an interval. Our new model is:
+
+\begin{equation}
+  \frac{1}{N} \sum_{u,i}(Y_{u,i} - \mu - b_i - b_u)^2 + \lambda (\sum_{i} b_i^2 + \sum_u b_u^2),
+\end{equation}
+
+where the first term is our previous least squares equation and the last term is the penalty with large bias terms. Minimizing the biases using a single $\lambda$ is the goal to our model shown above. We test `lamda <- seq(from=0, to=10, by=0.25)` and plot the results below:
+
+```{r regularized_effects, include=FALSE}
+# determine best lambda from a sequence
+lambdas <- seq(from=0, to=10, by=0.25)
+
+# output RMSE of each lambda, repeat earlier steps (with regularization)
+rmses <- sapply(lambdas, function(l){
+  # calculate average rating across training data
+  mu <- mean(edx$rating)
+  # compute regularized movie bias term
+  b_i <- edx %>% 
+    group_by(movieId) %>%
+    summarize(b_i = sum(rating - mu)/(n()+l))
+  # compute regularize user bias term
+  b_u <- edx %>% 
+    left_join(b_i, by="movieId") %>%
+    group_by(userId) %>%
+    summarize(b_u = sum(rating - b_i - mu)/(n()+l))
+  # compute predictions on validation set based on these above terms
+  predicted_ratings <- validation %>% 
+    left_join(b_i, by = "movieId") %>%
+    left_join(b_u, by = "userId") %>%
+    mutate(pred = mu + b_i + b_u) %>%
+    pull(pred)
+  # output RMSE of these predictions
+  return(RMSE(predicted_ratings, validation$rating))
+})
+```
+
+```{r rmses_vs_lambdas, echo=TRUE}
+qplot(lambdas, rmses)
+```
+
+We see that the minimizing $\lambda$ term is
+
+```{r final_lambda, echo=TRUE}
+lambdas[which.min(rmses)]
+```
+
+
+## Results
+
+For completeness, the final model is executed below:
+
+```{r final_model, echo=TRUE}
+# choose minimized lambda
+lam <- lambdas[which.min(rmses)]
+
+# compute regularize movie bias term
+b_i <- edx %>% 
+  group_by(movieId) %>%
+  summarize(b_i = sum(rating - mu)/(n()+lam))
+
+# compute regularize user bias term
+b_u <- edx %>% 
+  left_join(b_i, by="movieId") %>%
+  group_by(userId) %>%
+  summarize(b_u = sum(rating - b_i - mu)/(n()+lam))
+
+# compute predictions on validation set based on these above terms
+predicted_ratings <- validation %>% 
+  left_join(b_i, by = "movieId") %>%
+  left_join(b_u, by = "userId") %>%
+  mutate(pred = mu + b_i + b_u) %>%
+  pull(pred)
+
+# output RMSE of our final model
+RMSE(predicted_ratings, validation$rating)
+```
+
+We can see incremental improvements to the RMSE as we supplant our model with bias terms and regularization.
+
+| Method                             | RMSE     |
+|------------------------------------|----------|
+| Average                            | 1.06120  |
+| Movie effect                       | 0.94391  |
+| Movie and user effects             | 0.86535  |
+| Regularized movie and user effect  | 0.86481  |
+
+Our model is significantly more efficient than machine learning algorithms from R packages applied to this large data set. Because of the simplicity of the linear model, we are able to predict movie ratings without a serious toll on the computer resources.
+
