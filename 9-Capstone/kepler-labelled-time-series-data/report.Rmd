@@ -1,0 +1,83 @@
+---
+title: "Predicting Exoplanet Candidates"
+author: "Nick Wade"
+date: "12/25/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+train <- read.csv("exoTrain.csv")
+test <- read.csv("exoTest.csv")
+
+```
+
+
+
+## Introduction
+
+Astronomical data is often at the forefront of applicability when discussing machine learning algorithms. Processing large amounts of acquired data from ground, air, and space-based science missions requires streamlined computation to distinguish interesting and uninteresting data. In this project, we specifically look into the [Kepler time series data](https://www.kaggle.com/keplersmachines/kepler-labelled-time-series-data) and the application of machine learning techniques to recognize results.
+
+The Kepler mission set out to study the formation of planetary systems, namely extrasolar systems. This was achieved by focusing on terrestial planets (half to twice the size of Earth) using the transit method. This is done by measuring the change in light intensity, or flux, in the line of sight of a star. When an object passes in front of a star, the flux is observed in a recognizable dimming pattern.
+
+```{r flux_plot, echo=FALSE}
+y1 <- test %>% slice(2)
+y2 <- test %>% slice(7)
+x <- seq(1,3198)
+plot(x, y1, type="l", main="Exoplanet Light Flux",
+     xlab="time", ylab="flux")
+plot(x, y2, type="l", main="Non-Exoplanet Light Flux",
+     xlab="time", ylab="flux")
+```
+
+Despite the Kepler space telescope retiring on October 30, 2018 after running out of fuel, exoplanet hunting is far from over. The Transiting Exoplanet Survey Satellite (TESS) space telescope was launched earlier that year and continues the work of the Kepler telescope with more precise measurements. Therefore, continuing to develop prediction algorithms based on light flux data remains extremely valuable.
+
+
+
+### The Data Set
+The goal of this project is to train an exoplanet existence prediction algorithm based on Kepler space telescope time series data. Like usual machine learning algorithms, it is trained on a training data set to begin with then tested on a test data set, all of which is open-sourced and published on [Kaggle](https://www.kaggle.com/keplersmachines/kepler-labelled-time-series-data) or [GitHub](https://github.com/winterdelta/keplersmachines).
+
+The data is preprocessed to include the training and test sets, therefore, no data partitioning is required on our part. Each entry has a "LABEL" describing the existence of exoplanets around that star: 1 = No and 2 = Yes. We use these facts to train and test our algorithm on their respective data sets. The rest of the columns are flux readings at a given point in time.
+
+The dimensions of the training set are (`r dim(train)`). There are `r nrow(train)` entries with `r ncol(train)-1` flux intensity records (the first column being the LABEL column). The columns of the test set are the same but there are only `r nrow(test)` entries. The dimensions of the test set are (`r dim(test)`). The training data set is shown below:
+
+```{r show_dataset, echo=FALSE}
+str(train, list.len=6)
+```
+
+We can also determine that there are only `r train %>% filter(LABEL==2) %>% nrow()` confirmed stars with exoplanets in the training data set. That leaves the other `r train %>% filter(LABEL==1) %>% nrow()` as non-exoplanet stars. Due to the low number of exoplanet stars, we will be using recall as a success metric rather than accuracy because simply guessing that all entries are nonexoplanet would yield a high accuracy. The class distributions are shown below:
+
+```{r distribution_plot, echo=FALSE}
+hist(x=train$LABEL, main="Class Distribution",
+     breaks=seq(0.5,2.5,1), xlab="Class", ylab="Frequency",
+     col="Black", xaxt="n")
+axis(1, at=c(0,1,2,3), labels=c("0", "1", "2", "3"))
+```
+
+It is worth noting that the number of exoplanet stars were boosted in the dataset by contributing confirmed exoplanets from other campaigns. This dataset includes *all* observations from Campaign 3 and several confirmed exoplanet entries from these campaigns. NASA open-sources the original Kepler Mission data and it is hosted at the [Mikulski Archive](https://mast.stsci.edu/portal/Mashup/Clients/Mast/Portal.html).
+
+
+
+## Methods
+
+a methods/analysis section that explains the process and techniques used, such as data cleaning, data exploration and visualization, any insights gained, and your modeling approach;
+
+
+
+## Results
+
+a results section that presents the modeling results and discusses the model performance; and
+
+
+
+## Conclusion
+
+a conclusion section that gives a brief summary of the report, its limitations, and future work (the last two are recommended but not necessary)
+
+
